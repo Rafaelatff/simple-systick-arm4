@@ -1,5 +1,8 @@
-#include "../drivers/Inc/gpio.h"
+#include "../driver/Inc/gpio.h"
+#include "../driver/Inc/systick.h"
 //#include "gpio.h"
+//#include "systick.h"
+
 
 GPIO_InitTypeDef myGPIO_InitStruct;
 
@@ -12,7 +15,9 @@ int main(void){
 	LIB_GPIO_Init(GPIOA, &myGPIO_InitStruct);
 
 	while(1){
-		for(int i=0;i<900000;i++){}
+		SysTick_delay (2);
+		LIB_GPIO_TooglePin(GPIOA, GPIO_PIN_5);
+		SysTick_delay_ms (100);
 		LIB_GPIO_TooglePin(GPIOA, GPIO_PIN_5);
 	}
 }

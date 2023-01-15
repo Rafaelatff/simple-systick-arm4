@@ -2,5 +2,5 @@
 "./Src/syscalls.o"
 "./Src/sysmem.o"
 "./Startup/startup_stm32f401retx.o"
-"./drivers/Src/gpio.o"
-"./drivers/Src/systick.o"
+"./driver/Src/gpio.o"
+"./driver/Src/systick.o"
