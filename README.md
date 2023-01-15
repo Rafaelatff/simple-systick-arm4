@@ -7,6 +7,8 @@ I did some of the sections of the course 'Embedded Systems Object-Oriented Progr
 
 # lessons learned in the systick section
 
+**Important: the folder driver cannot be named drivers.**
+
 The SysTick is a peripheral from ARM modules, so all the microcontrollers from all manufactures will have it assembled. To check the information about SysTick, the 'Cortex M4 Devices - Generic User Guide' (DUI0553) must be consulted.
 
 SysTick can be very complex, but in this course it's in implemented in the most simple way. In the header file of SysTick (systick.h), a typedef struct was created with all the registers of SysTick.  
@@ -51,6 +53,103 @@ And finally, to use the arrow operator instead of the dot, we added the macro fo
 #define SysTick ((SysTick_Type *)SysTick_BASEADDR) /*SysTick configuration structure*/
 ```
 
+In the source file of the driver (systick.c), que create the functions *SysTick_delay* (with delay in the house of seconds) and *SysTick_delay_ms* (delay of milliseconds).
+
+First we configure the SysTick, by loading the value 16 M - 1 at RVR register. SysClk isn't configured, so SysClk is by default 16Mhz (16M cycles per second), so, for a 1 second delay, just run 16M cycles. SysTick is 24-bit timer, so, value cannot pass 0xFFFFFF (dec: 16777215).
+
+![image](https://user-images.githubusercontent.com/58916022/212539069-399b966b-4f25-420b-abf4-dcea0a5bff42.png)
+
+```c
+void SysTick_delay(uint32_t sec){
+/*Configure SysTick*/
+SysTick->RVR =  16000000 -1;
+```
+
+After that, we clear the current value register (CVR), this clear the current value of SysTick counter. After write in the CVR, also clears the SYST_CSR COUNTFLAG bit to 0.
+
+![image](https://user-images.githubusercontent.com/58916022/212539095-baca9dee-b8df-46ee-8d90-188a1a66ea4b.png)
+
+```c
+SysTick->CVR = 0; 
+```
+
+Then, we enable the systick, with no interrupt. By loading t (0b101) to register CSR, we enable the counter (bit field 0 with value 1), we configure to counting down to zero and to does not assert the SysTick exception request (bit field 0 with value 0) and configure to use processor clock (bit field 2 with value 1).
+
+![image](https://user-images.githubusercontent.com/58916022/212539330-94754191-29d5-482e-be76-b3b170900a93.png)
+
+```c
+SysTick->CSR = 5;
+```
+
+And at last, we create a *for* loop to hold the time (by pooling) that the function receives (*sec*). The *while* loop holds the function only 1 second.
+At the end of the time, we disble the counter.
+
+```c
+	for(uint32_t i=0;i<sec;i++){
+	  while((SysTick->CSR &0x10000)== 0){} /*Wait until the COUNTFLAG is set*/
+	}
+	SysTick->CSR =0;  /*Stop the timer (En =0)*/
+}
+```
+
+For the millisecond function, we do the same, but we configure the RV Register to 16000 -1.
+
+Then, in the main, we just call the function and ask to toggle the LD2.
+
+```c
+	while(1){
+		SysTick_delay (2);
+		LIB_GPIO_TooglePin(GPIOA, GPIO_PIN_5);
+		SysTick_delay_ms (100);
+		LIB_GPIO_TooglePin(GPIOA, GPIO_PIN_5);
+	}
+```
+
 # lessons learned in the uart section
 
+Tera term = 9600 baud rate
+---
+
+uart.h
+
+To use the 'arrow operator':
+
+```c
+#define		__IO			volatile
+#define APB1PERIPH_BASE			(PERIPH_BASE +  0x00000000U)
+#define USART2_BASE			    (APB1PERIPH_BASE + 0x4400U)
+
+typedef struct
+{
+	__IO uint32_t SR;    /*USART Status Register*/
+	__IO uint32_t DR;	 	/*USART Data Register*/
+	__IO uint32_t BRR;   /*USART Buad rate register*/
+	__IO uint32_t CR1;    /*USART Control Register 1*/
+	__IO uint32_t CR2;    /*USART Control Register 2*/
+	__IO uint32_t CR3;    /*USART Control Register 3*/
+
+}USART_TypeDef;
+
+#define	USART2	((USART_TypeDef *)USART2_BASE)
+```
+Then just type: USART2->SR
+
+uart.c 
+
+Simplifield lib codes (only send characteres):
+
+```c
+char LIB_UART_Read(void){
+	while(!(USART2->SR & 0x0020)){}//Wait till character arrives
+	return USART2->DR;
+}
+
+void LIB_UART_Write(int ch){
+	while(!(USART2->SR & 0x0080)){} // Wait until Tx buffer empty
+	USART2->DR = (ch & 0xFF);
+}
+```
+
 # lessons learned in gpio section
+
+For the GPIO config, the instructor used some functions together, like ALTERNATE_FUNCTION_OD and then ALTERNATE_FUNCTION_PP, OUTPUT_OD and then OUTPUT_PP. I still prefer the way seen before (by FastBit Academy).
